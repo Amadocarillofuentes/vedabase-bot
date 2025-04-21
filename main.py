@@ -1,139 +1,139 @@
 #updated code (06) on 4/21/25 7:25pm:
-import discord
-from discord.ext import commands
-import os
-import requests
-from bs4 import BeautifulSoup
-from keep_alive import keep_alive
+# import discord
+# from discord.ext import commands
+# import os
+# import requests
+# from bs4 import BeautifulSoup
+# from keep_alive import keep_alive
 
 
-# --- Discord Bot Setup ---
-intents = discord.Intents.default()
-intents.message_content = True
-bot = commands.Bot(command_prefix='!', intents=intents)
+# # --- Discord Bot Setup ---
+# intents = discord.Intents.default()
+# intents.message_content = True
+# bot = commands.Bot(command_prefix='!', intents=intents)
 
 
-@bot.event
-async def on_ready():
-    print(f'✅ Bot is ready. Logged in as {bot.user}')
+# @bot.event
+# async def on_ready():
+#     print(f'✅ Bot is ready. Logged in as {bot.user}')
 
 
-@bot.command()
-async def test(ctx):
-    await ctx.send("Hare Krishna! Bot is alive and responding!")
+# @bot.command()
+# async def test(ctx):
+#     await ctx.send("Hare Krishna! Bot is alive and responding!")
 
 
-# --- Merged Verses Conflict Dictionary ---
-merged_verses = {
-    'bg': {
-        1: [(16, 18), (21, 22), (32, 35), (37, 38)],
-        2: [(5, 6), (42, 43)],
-        5: [(8, 9), (27, 28)],
-        6: [(11, 12), (13, 14), (20, 23)],
-        10: [(4, 5), (12, 13)],
-        11: [(10, 11), (26, 27), (41, 42)],
-        12: [(3, 4), (6, 7), (13, 14), (18, 19)],
-        13: [(1, 2), (6, 7), (8, 12)],
-        14: [(22, 25)],
-        15: [(3, 4)],
-        16: [(1, 3), (11, 12), (13, 15)],
-        17: [(5, 6), (26, 27)],
-        18: [(51, 53)]
-    },
-    'sb': {},
-    'cc': {}
-}
+# # --- Merged Verses Conflict Dictionary ---
+# merged_verses = {
+#     'bg': {
+#         1: [(16, 18), (21, 22), (32, 35), (37, 38)],
+#         2: [(5, 6), (42, 43)],
+#         5: [(8, 9), (27, 28)],
+#         6: [(11, 12), (13, 14), (20, 23)],
+#         10: [(4, 5), (12, 13)],
+#         11: [(10, 11), (26, 27), (41, 42)],
+#         12: [(3, 4), (6, 7), (13, 14), (18, 19)],
+#         13: [(1, 2), (6, 7), (8, 12)],
+#         14: [(22, 25)],
+#         15: [(3, 4)],
+#         16: [(1, 3), (11, 12), (13, 15)],
+#         17: [(5, 6), (26, 27)],
+#         18: [(51, 53)]
+#     },
+#     'sb': {},
+#     'cc': {}
+# }
 
 
-# --- URL Resolution Function ---
-def resolve_url(scripture, chapter, verse):
-    """
-    Resolves the correct URL for a verse, including merged verses.
-    """
-    chapter_merges = merged_verses.get(scripture, {}).get(chapter, [])
-    for verse_range in chapter_merges:
-        if verse in range(verse_range[0], verse_range[1] + 1):
-            return f'https://vedabase.io/en/library/{scripture}/{chapter}/{verse_range[0]}/'
-    return f'https://vedabase.io/en/library/{scripture}/{chapter}/{verse}/'
+# # --- URL Resolution Function ---
+# def resolve_url(scripture, chapter, verse):
+#     """
+#     Resolves the correct URL for a verse, including merged verses.
+#     """
+#     chapter_merges = merged_verses.get(scripture, {}).get(chapter, [])
+#     for verse_range in chapter_merges:
+#         if verse in range(verse_range[0], verse_range[1] + 1):
+#             return f'https://vedabase.io/en/library/{scripture}/{chapter}/{verse_range[0]}/'
+#     return f'https://vedabase.io/en/library/{scripture}/{chapter}/{verse}/'
 
 
-# --- Scraper Function ---
-def scrape_vedabase_verse(url):
-    headers = {'User-Agent': 'Mozilla/5.0'}
-    try:
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, 'html.parser')
+# # --- Scraper Function ---
+# def scrape_vedabase_verse(url):
+#     headers = {'User-Agent': 'Mozilla/5.0'}
+#     try:
+#         response = requests.get(url, headers=headers)
+#         response.raise_for_status()
+#         soup = BeautifulSoup(response.text, 'html.parser')
 
-        devanagari = soup.find('h2', string='Devanagari').find_next('div').text.strip()
-        verse_text = soup.find('h2', string='Verse text').find_next('div').text.strip()
-        translation = soup.find('h2', string='Translation').find_next('div').text.strip()
-        purport = soup.find('h2', string='Purport').find_next('div').text.strip()
-        synonyms = soup.find('h2', string='Synonyms').find_next('div').text.strip()
+#         devanagari = soup.find('h2', string='Devanagari').find_next('div').text.strip()
+#         verse_text = soup.find('h2', string='Verse text').find_next('div').text.strip()
+#         translation = soup.find('h2', string='Translation').find_next('div').text.strip()
+#         purport = soup.find('h2', string='Purport').find_next('div').text.strip()
+#         synonyms = soup.find('h2', string='Synonyms').find_next('div').text.strip()
 
-        return {
-            'devanagari': devanagari,
-            'verse_text': verse_text,
-            'translation': translation,
-            'purport': purport,
-            'synonyms': synonyms
-        }
-    except requests.RequestException as e:
-        return f"Error fetching the webpage: {e}"
-    except AttributeError as e:
-        return f"Error parsing the content: {e}"
-
-
-# --- Embed Sending Function ---
-async def send_verse_embed(ctx, scripture_name, verse_number, content, color):
-    if isinstance(content, dict):
-        embed = discord.Embed(title=f"{scripture_name} {verse_number}", color=color)
-        for label, text in content.items():
-            if text:
-                for i in range(0, len(text), 1024):
-                    embed.add_field(name=label.capitalize() if i == 0 else f"{label.capitalize()} (cont'd)", value=text[i:i + 1024], inline=False)
-        await ctx.send(embed=embed)
-    else:
-        await ctx.send(content)
+#         return {
+#             'devanagari': devanagari,
+#             'verse_text': verse_text,
+#             'translation': translation,
+#             'purport': purport,
+#             'synonyms': synonyms
+#         }
+#     except requests.RequestException as e:
+#         return f"Error fetching the webpage: {e}"
+#     except AttributeError as e:
+#         return f"Error parsing the content: {e}"
 
 
-# --- Verse Commands ---
-@bot.command(name='bg')
-async def fetch_bg_verse(ctx, verse_number: str):
-    try:
-        chapter, verse = map(int, verse_number.split("."))
-        url = resolve_url('bg', chapter, verse)
-        verse_content = scrape_vedabase_verse(url)
-        await send_verse_embed(ctx, "Bhagavad Gita", verse_number, verse_content, discord.Color.purple())
-    except ValueError:
-        await ctx.send("Please enter a valid verse format like 2.13")
+# # --- Embed Sending Function ---
+# async def send_verse_embed(ctx, scripture_name, verse_number, content, color):
+#     if isinstance(content, dict):
+#         embed = discord.Embed(title=f"{scripture_name} {verse_number}", color=color)
+#         for label, text in content.items():
+#             if text:
+#                 for i in range(0, len(text), 1024):
+#                     embed.add_field(name=label.capitalize() if i == 0 else f"{label.capitalize()} (cont'd)", value=text[i:i + 1024], inline=False)
+#         await ctx.send(embed=embed)
+#     else:
+#         await ctx.send(content)
 
 
-@bot.command(name='sb')
-async def fetch_sb_verse(ctx, verse_number: str):
-    try:
-        chapter, verse = map(int, verse_number.split("."))
-        url = resolve_url('sb', chapter, verse)
-        verse_content = scrape_vedabase_verse(url)
-        await send_verse_embed(ctx, "Śrīmad Bhāgavatam", verse_number, verse_content, discord.Color.blue())
-    except ValueError:
-        await ctx.send("Please enter a valid verse format like 2.13")
+# # --- Verse Commands ---
+# @bot.command(name='bg')
+# async def fetch_bg_verse(ctx, verse_number: str):
+#     try:
+#         chapter, verse = map(int, verse_number.split("."))
+#         url = resolve_url('bg', chapter, verse)
+#         verse_content = scrape_vedabase_verse(url)
+#         await send_verse_embed(ctx, "Bhagavad Gita", verse_number, verse_content, discord.Color.purple())
+#     except ValueError:
+#         await ctx.send("Please enter a valid verse format like 2.13")
 
 
-@bot.command(name='cc')
-async def fetch_cc_verse(ctx, verse_number: str):
-    try:
-        chapter, verse = map(int, verse_number.split("."))
-        url = resolve_url('cc', chapter, verse)
-        verse_content = scrape_vedabase_verse(url)
-        await send_verse_embed(ctx, "Chaitanya Charitāmṛta", verse_number, verse_content, discord.Color.green())
-    except ValueError:
-        await ctx.send("Please enter a valid verse format like 2.13")
+# @bot.command(name='sb')
+# async def fetch_sb_verse(ctx, verse_number: str):
+#     try:
+#         chapter, verse = map(int, verse_number.split("."))
+#         url = resolve_url('sb', chapter, verse)
+#         verse_content = scrape_vedabase_verse(url)
+#         await send_verse_embed(ctx, "Śrīmad Bhāgavatam", verse_number, verse_content, discord.Color.blue())
+#     except ValueError:
+#         await ctx.send("Please enter a valid verse format like 2.13")
 
 
-# --- Run Everything ---
-keep_alive()
-bot.run(os.environ['DISCORD_TOKEN'])  # Token is stored in Replit secrets
+# @bot.command(name='cc')
+# async def fetch_cc_verse(ctx, verse_number: str):
+#     try:
+#         chapter, verse = map(int, verse_number.split("."))
+#         url = resolve_url('cc', chapter, verse)
+#         verse_content = scrape_vedabase_verse(url)
+#         await send_verse_embed(ctx, "Chaitanya Charitāmṛta", verse_number, verse_content, discord.Color.green())
+#     except ValueError:
+#         await ctx.send("Please enter a valid verse format like 2.13")
+
+
+# # --- Run Everything ---
+# keep_alive()
+# bot.run(os.environ['DISCORD_TOKEN'])  # Token is stored in Replit secrets
 
 
 # updated code on 4/21/25 6:38pm :
@@ -403,108 +403,108 @@ bot.run(os.environ['DISCORD_TOKEN'])  # Token is stored in Replit secrets
 #original code down here :
 
 
-# import discord
-# from discord.ext import commands
-# import os
-# import requests
-# from bs4 import BeautifulSoup
-# from keep_alive import keep_alive
+import discord
+from discord.ext import commands
+import os
+import requests
+from bs4 import BeautifulSoup
+from keep_alive import keep_alive
 
 
-# # --- Discord Bot Setup ---
-# intents = discord.Intents.default()
-# intents.message_content = True
-# bot = commands.Bot(command_prefix='!', intents=intents)
+# --- Discord Bot Setup ---
+intents = discord.Intents.default()
+intents.message_content = True
+bot = commands.Bot(command_prefix='!', intents=intents)
 
 
-# @bot.event
-# async def on_ready():
-#     print(f'✅ Bot is ready. Logged in as {bot.user}')
+@bot.event
+async def on_ready():
+    print(f'✅ Bot is ready. Logged in as {bot.user}')
 
 
-# @bot.command()
-# async def test(ctx):
-#     await ctx.send("Hare Krishna! Bot is alive and responding!")
+@bot.command()
+async def test(ctx):
+    await ctx.send("Hare Krishna! Bot is alive and responding!")
 
 
-# # --- Scraper Function ---
-# def scrape_vedabase_verse(url):
-#     headers = {'User-Agent': 'Mozilla/5.0'}
-#     try:
-#         response = requests.get(url, headers=headers)
-#         response.raise_for_status()
-#         soup = BeautifulSoup(response.text, 'html.parser')
+# --- Scraper Function ---
+def scrape_vedabase_verse(url):
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
 
-#         devanagari = soup.find(
-#             'h2', string='Devanagari').find_next('div').text.strip()
-#         verse_text = soup.find(
-#             'h2', string='Verse text').find_next('div').text.strip()
-#         translation = soup.find(
-#             'h2', string='Translation').find_next('div').text.strip()
-#         purport = soup.find('h2',
-#                             string='Purport').find_next('div').text.strip()
-#         synonyms = soup.find('h2',
-#                              string='Synonyms').find_next('div').text.strip()
+        devanagari = soup.find(
+            'h2', string='Devanagari').find_next('div').text.strip()
+        verse_text = soup.find(
+            'h2', string='Verse text').find_next('div').text.strip()
+        translation = soup.find(
+            'h2', string='Translation').find_next('div').text.strip()
+        purport = soup.find('h2',
+                            string='Purport').find_next('div').text.strip()
+        synonyms = soup.find('h2',
+                             string='Synonyms').find_next('div').text.strip()
 
-#         return {
-#             'devanagari': devanagari,
-#             'verse_text': verse_text,
-#             'translation': translation,
-#             'purport': purport,
-#             'synonyms': synonyms
-#         }
-#     except requests.RequestException as e:
-#         return f"Error fetching the webpage: {e}"
-#     except AttributeError as e:
-#         return f"Error parsing the content: {e}"
-
-
-# # --- Embed Sending Function ---
-# async def send_verse_embed(ctx, scripture_name, verse_number, content, color):
-#     if isinstance(content, dict):
-#         embed = discord.Embed(title=f"{scripture_name} {verse_number}",
-#                               color=color)
-#         for label, text in content.items():
-#             if text:
-#                 for i in range(0, len(text), 1024):
-#                     embed.add_field(name=label.capitalize() if i == 0 else
-#                                     f"{label.capitalize()} (cont'd)",
-#                                     value=text[i:i + 1024],
-#                                     inline=False)
-#         await ctx.send(embed=embed)
-#     else:
-#         await ctx.send(content)
+        return {
+            'devanagari': devanagari,
+            'verse_text': verse_text,
+            'translation': translation,
+            'purport': purport,
+            'synonyms': synonyms
+        }
+    except requests.RequestException as e:
+        return f"Error fetching the webpage: {e}"
+    except AttributeError as e:
+        return f"Error parsing the content: {e}"
 
 
-# # --- Verse Commands ---
-# @bot.command(name='bg')
-# async def fetch_bg_verse(ctx, verse_number: str):
-#     url = f'https://vedabase.io/en/library/bg/{verse_number.replace(".", "/")}/'
-#     verse_content = scrape_vedabase_verse(url)
-#     await send_verse_embed(ctx, "Bhagavad Gita", verse_number, verse_content,
-#                            discord.Color.purple())
+# --- Embed Sending Function ---
+async def send_verse_embed(ctx, scripture_name, verse_number, content, color):
+    if isinstance(content, dict):
+        embed = discord.Embed(title=f"{scripture_name} {verse_number}",
+                              color=color)
+        for label, text in content.items():
+            if text:
+                for i in range(0, len(text), 1024):
+                    embed.add_field(name=label.capitalize() if i == 0 else
+                                    f"{label.capitalize()} (cont'd)",
+                                    value=text[i:i + 1024],
+                                    inline=False)
+        await ctx.send(embed=embed)
+    else:
+        await ctx.send(content)
 
 
-# @bot.command(name='sb')
-# async def fetch_sb_verse(ctx, verse_number: str):
-#     url = f'https://vedabase.io/en/library/sb/{verse_number.replace(".", "/")}/'
-#     verse_content = scrape_vedabase_verse(url)
-#     await send_verse_embed(ctx, "Śrīmad Bhāgavatam", verse_number,
-#                            verse_content, discord.Color.blue())
+# --- Verse Commands ---
+@bot.command(name='bg')
+async def fetch_bg_verse(ctx, verse_number: str):
+    url = f'https://vedabase.io/en/library/bg/{verse_number.replace(".", "/")}/'
+    verse_content = scrape_vedabase_verse(url)
+    await send_verse_embed(ctx, "Bhagavad Gita", verse_number, verse_content,
+                           discord.Color.purple())
 
 
-# @bot.command(name='cc')
-# async def fetch_cc_verse(ctx, verse_number: str):
-#     url = f'https://vedabase.io/en/library/cc/{verse_number.replace(".", "/")}/'
-#     verse_content = scrape_vedabase_verse(url)
-#     await send_verse_embed(ctx, "Chaitanya Charitāmṛta", verse_number,
-#                            verse_content, discord.Color.green())
+@bot.command(name='sb')
+async def fetch_sb_verse(ctx, verse_number: str):
+    url = f'https://vedabase.io/en/library/sb/{verse_number.replace(".", "/")}/'
+    verse_content = scrape_vedabase_verse(url)
+    await send_verse_embed(ctx, "Śrīmad Bhāgavatam", verse_number,
+                           verse_content, discord.Color.blue())
 
 
-# # --- Run Everything ---
-# keep_alive()
-# bot.run(os.environ['DISCORD_TOKEN']
-#         )  # Discord token will be accessed from Replit Secrets
+@bot.command(name='cc')
+async def fetch_cc_verse(ctx, verse_number: str):
+    url = f'https://vedabase.io/en/library/cc/{verse_number.replace(".", "/")}/'
+    verse_content = scrape_vedabase_verse(url)
+    await send_verse_embed(ctx, "Chaitanya Charitāmṛta", verse_number,
+                           verse_content, discord.Color.green())
 
-# # This is a test change to track updates
+
+# --- Run Everything ---
+keep_alive()
+bot.run(os.environ['DISCORD_TOKEN']
+        )  # Discord token will be accessed from Replit Secrets
+
+# This is a test change to track updates
 
