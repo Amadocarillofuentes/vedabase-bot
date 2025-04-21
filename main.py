@@ -1,4 +1,4 @@
-#updated code (04) on 4/21/25 6:55pm:
+#updated code (05) on 4/21/25 6:55pm:
 import discord
 from discord.ext import commands
 import os
@@ -19,38 +19,40 @@ async def on_ready():
 async def test(ctx):
     await ctx.send("Hare Krishna! Bot is alive and responding!")
 
-# --- Accurate Merged Verses Mapping ---
-merged_verse_map = {
+# --- Manual Verse Redirects for Broken/Merged Verses ---
+verse_redirect_map = {
     'bg': {
-        1: {
-            16: "16-18", 17: "16-18", 18: "16-18",
-            21: "21-22", 22: "21-22",
-        },
-        2: {
-            5: "5-6", 6: "5-6",
-        },
-        18: {
-            53: "53-55", 54: "53-55", 55: "53-55"
-        }
-        # Add more mappings if discovered
+        '1.16': '1/15',
+        '1.17': '1/15',
+        '1.18': '1/15',
+        '1.21': '1/20',
+        '1.22': '1/20',
+        '2.5': '2/4',
+        '2.6': '2/4',
+        '18.53': '18/52',
+        '18.54': '18/52',
+        '18.55': '18/52',
     },
-    'sb': {},
-    'cc': {}
+    'sb': {
+        # Add SB redirects if any in future
+    },
+    'cc': {
+        # Add CC redirects if any in future
+    }
 }
 
-# --- URL Resolution ---
+# --- URL Resolution Function ---
 def resolve_url(scripture, chapter, verse):
-    try:
-        # Check if verse is part of merged mapping
-        merged = merged_verse_map.get(scripture, {}).get(chapter, {}).get(verse)
-        if merged:
-            return f'https://vedabase.io/en/library/{scripture}/{chapter}/{merged}/'
-        else:
-            return f'https://vedabase.io/en/library/{scripture}/{chapter}/{verse}/'
-    except Exception as e:
-        return f"Error resolving URL: {e}"
+    """
+    Resolves the correct Vedabase URL, including merged or redirected verses.
+    """
+    verse_key = f"{chapter}.{verse}"
+    if scripture in verse_redirect_map and verse_key in verse_redirect_map[scripture]:
+        redirect_path = verse_redirect_map[scripture][verse_key]
+        return f"https://vedabase.io/en/library/{scripture}/{redirect_path}/"
+    return f"https://vedabase.io/en/library/{scripture}/{chapter}/{verse}/"
 
-# --- Scraper ---
+# --- Scraper Function ---
 def scrape_vedabase_verse(url):
     headers = {'User-Agent': 'Mozilla/5.0'}
     try:
@@ -76,19 +78,23 @@ def scrape_vedabase_verse(url):
     except AttributeError as e:
         return f"Error parsing the content: {e}"
 
-# --- Embed Sender ---
+# --- Embed Sending Function ---
 async def send_verse_embed(ctx, scripture_name, verse_number, content, color):
     if isinstance(content, dict):
         embed = discord.Embed(title=f"{scripture_name} {verse_number}", color=color)
         for label, text in content.items():
             if text:
                 for i in range(0, len(text), 1024):
-                    embed.add_field(name=label.capitalize() if i == 0 else f"{label.capitalize()} (cont'd)", value=text[i:i + 1024], inline=False)
+                    embed.add_field(
+                        name=label.capitalize() if i == 0 else f"{label.capitalize()} (cont'd)",
+                        value=text[i:i + 1024],
+                        inline=False
+                    )
         await ctx.send(embed=embed)
     else:
         await ctx.send(content)
 
-# --- Bhagavad Gita Command ---
+# --- Verse Commands ---
 @bot.command(name='bg')
 async def fetch_bg_verse(ctx, verse_number: str):
     try:
@@ -99,7 +105,6 @@ async def fetch_bg_verse(ctx, verse_number: str):
     except ValueError:
         await ctx.send("Please enter a valid verse format like 2.13")
 
-# --- Srimad Bhagavatam Command ---
 @bot.command(name='sb')
 async def fetch_sb_verse(ctx, verse_number: str):
     try:
@@ -110,7 +115,6 @@ async def fetch_sb_verse(ctx, verse_number: str):
     except ValueError:
         await ctx.send("Please enter a valid verse format like 2.13")
 
-# --- Chaitanya Charitamrita Command ---
 @bot.command(name='cc')
 async def fetch_cc_verse(ctx, verse_number: str):
     try:
@@ -121,9 +125,9 @@ async def fetch_cc_verse(ctx, verse_number: str):
     except ValueError:
         await ctx.send("Please enter a valid verse format like 2.13")
 
-# --- Run ---
+# --- Run Everything ---
 keep_alive()
-bot.run(os.environ['DISCORD_TOKEN'])
+bot.run(os.environ['DISCORD_TOKEN'])  # Use your secret from Replit
 
 
 # updated code on 4/21/25 6:38pm :
